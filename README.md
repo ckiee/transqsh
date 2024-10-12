@@ -1,4 +1,8 @@
-# transqsh (name wip)
+# transqsh 
+
+a music transcoder to 96k opus. it just does the thing.
+
+## todo
 
 - [-] fix the memory leak
 - [ ] '/home/ckie/Music/flat/jauntsen-soundcloud/arrival [1405331467].wav': Invalid argument
