@@ -3,9 +3,13 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     naersk.url = "github:nix-community/naersk";
+    flake-compat = {
+      url = "github:ElvishJerricco/flake-compat/add-overrideInputs";
+      flake = false;
+    };
   };
 
-  outputs = { self, flake-utils, naersk, nixpkgs }:
+  outputs = { self, flake-utils, naersk, nixpkgs, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = (import nixpkgs) { inherit system; };
