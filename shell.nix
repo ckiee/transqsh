@@ -1,11 +1,11 @@
-{ pkgs ? import <nixpkgs> { } }:
-
-with pkgs;
-
-mkShell {
-  buildInputs = [ pkg-config ffmpeg_6-full ];
-  # HACK:
-  inputsFrom = [ ffmpeg_6-full ];
-
-  LIBCLANG_PATH = "${llvmPackages.libclang.lib}/lib";
-}
+(import
+  (
+    let lock = builtins.fromJSON (builtins.readFile ./flake.lock); in
+    fetchTarball {
+      url = with lock.nodes.flake-compat.locked;
+        "https://github.com/${owner}/${repo}/archive/${rev}.tar.gz";
+      sha256 = lock.nodes.flake-compat.locked.narHash;
+    }
+  )
+  { src = ./.; }
+).shellNix

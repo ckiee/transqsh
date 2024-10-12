@@ -12,7 +12,10 @@
   outputs = { self, flake-utils, naersk, nixpkgs, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        pkgs = (import nixpkgs) { inherit system; };
+        pkgs = (import nixpkgs) {
+          inherit system;
+          config.allowUnfree = true;
+        };
 
         naersk' = pkgs.callPackage naersk { };
 
@@ -22,14 +25,25 @@
           src = ./.;
 
           nativeBuildInputs = with pkgs; [ pkg-config clang ];
-          buildInputs = with pkgs; [ ffmpeg_6-full ];
+          buildInputs = with pkgs;
+            [
+              (ffmpeg_6.override {
+                ffmpegVariant = "headless";
+
+                withUnfree = true; # for:
+                withFdkAac = true;
+              })
+            ];
 
           LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
         };
 
         # For `nix develop`:
         devShell = pkgs.mkShell {
-          nativeBuildInputs = with pkgs; [ rustc cargo rust-analyzer clippy ];
+          nativeBuildInputs = with pkgs;
+            [ rustc cargo rust-analyzer clippy ]
+            ++ defaultPackage.nativeBuildInputs;
+          buildInputs = defaultPackage.buildInputs;
         };
       });
 }

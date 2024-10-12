@@ -18,8 +18,14 @@ well hi there!
 - theres a nix flake, you can install that.
 - if you can't install that you could `cargo build --release` and copy the output to a /usr/local/bin.
 - you could also just clone the repo and `cargo run --release -- --help`
+    + you need ffmpeg 6, ideally with fdk_aac if you plan to use that.
 
 poke me if you need help, see [my website](https://mei.puppycat.house/) for how
+
+### codecs
+as of 2024-10-12 on my ~/Music/flat
+- mp3: `Transcoded 95.8 GB ⇒ 61.6 GB (-35.70%)`
+- opus: `Transcoded 95.8 GB ⇒ 27.9 GB (-70.89%)`
 
 ### syncthing that shit
 

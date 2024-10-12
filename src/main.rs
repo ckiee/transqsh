@@ -1,5 +1,5 @@
 use std::{
-    fmt::{Write},
+    fmt::Write,
     fs,
     path::PathBuf,
     sync::atomic::{AtomicU64, Ordering},
@@ -7,7 +7,7 @@ use std::{
 
 use anyhow::{Context, Result as AResult};
 use bytesize::ByteSize;
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use ffmpeg::format;
 use ffmpeg_the_third as ffmpeg;
 use indicatif::{ParallelProgressIterator, ProgressState, ProgressStyle};
@@ -21,12 +21,22 @@ use walkdir::WalkDir;
 mod transcode;
 use transcode::transcoder;
 
-/// Transcodes your music folder to Opus
+#[derive(Debug, Clone, ValueEnum, Copy)]
+pub enum OutputCodec {
+    Mp3,
+    Opus,
+    Aac,
+}
+
+/// Transcodes your music folder without asking too many questions
 #[derive(Parser, Debug, Clone)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
     src: PathBuf,
     out: PathBuf,
+
+    #[clap(short = 'c', long, default_value_t = OutputCodec::Mp3, value_enum)]
+    codec: OutputCodec,
 
     #[clap(short = 'i', long)]
     show_errors: bool,
@@ -88,7 +98,11 @@ fn main() -> AResult<()> {
                 .for_each(|(_, c)| rel_comps.push(c));
 
             let output_path_orig_ext = args.out.join(rel_comps);
-            let output_path = output_path_orig_ext.with_extension("opus");
+            let output_path = output_path_orig_ext.with_extension(match args.codec {
+                OutputCodec::Mp3 => "mp3",
+                OutputCodec::Opus => "opus",
+                OutputCodec::Aac => "m4a",
+            });
             (
                 (input_path.clone(), output_path.clone()),
                 (|| -> AResult<()> {
@@ -108,7 +122,7 @@ fn main() -> AResult<()> {
                     let mut ictx = format::input(&input_path)?;
                     let mut octx = format::output(&output_path)?;
 
-                    let mut transcoder = transcoder(&mut ictx, &mut octx, &output_path, "anull")?;
+                    let mut transcoder = transcoder(&mut ictx, &mut octx, &output_path, "anull", args.codec)?;
                     octx.set_metadata(ictx.metadata().to_owned());
                     octx.write_header()?;
 
@@ -158,10 +172,7 @@ fn main() -> AResult<()> {
         let hint = if args.show_errors {
             format!("")
         } else {
-            format!(
-                " {}",
-                "Run with --show-errors [-i] for details".italic()
-            )
+            format!(" {}", "Run with --show-errors [-i] for details".italic())
         };
         eprintln!("{} failed:{hint}", errors.len());
     }

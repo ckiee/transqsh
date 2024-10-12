@@ -2,8 +2,11 @@ use std::path::Path;
 
 use anyhow::Context;
 use anyhow::Result as AResult;
+use ffmpeg::codec::Profile;
 use ffmpeg::{codec, filter, format, frame, media};
 use ffmpeg_the_third as ffmpeg;
+
+use crate::OutputCodec;
 
 fn filter(
     spec: &str,
@@ -12,9 +15,6 @@ fn filter(
 ) -> Result<filter::Graph, ffmpeg::Error> {
     let mut filter = filter::Graph::new();
 
-    #[cfg(feature = "ffmpeg_5_1")]
-    let channel_layout = decoder.ch_layout().description();
-    #[cfg(not(feature = "ffmpeg_5_1"))]
     let channel_layout = format!("0x{:x}", decoder.channel_layout().bits());
 
     let args = format!(
@@ -32,10 +32,7 @@ fn filter(
 
         out.set_sample_format(encoder.format());
         out.set_sample_rate(encoder.rate());
-        #[cfg(not(feature = "ffmpeg_5_1"))]
         out.set_channel_layout(encoder.channel_layout());
-        #[cfg(feature = "ffmpeg_5_1")]
-        out.set_ch_layout(encoder.ch_layout());
     }
 
     filter.output("in", 0)?.input("out", 0)?.parse(spec)?;
@@ -73,6 +70,7 @@ pub fn transcoder<P: AsRef<Path>>(
     octx: &mut format::context::Output,
     output_path: &P,
     filter_spec: &str,
+    codec_hint: OutputCodec,
 ) -> AResult<Transcoder> {
     // Copy file metadata over (yes, it's really this easy)
     octx.set_metadata(ictx.metadata().to_owned());
@@ -102,17 +100,6 @@ pub fn transcoder<P: AsRef<Path>>(
         encoder.set_flags(ffmpeg::codec::flag::Flags::GLOBAL_HEADER);
     }
 
-    #[cfg(feature = "ffmpeg_5_1")]
-    {
-        let ch_layout = codec
-            .ch_layouts()
-            .map(|cls| cls.best(decoder.ch_layout().channels()))
-            .unwrap_or(ffmpeg::channel_layout::ChannelLayout::STEREO);
-
-        encoder.set_ch_layout(ch_layout);
-    }
-
-    #[cfg(not(feature = "ffmpeg_5_1"))]
     {
         let channel_layout = codec
             .channel_layouts()
@@ -131,8 +118,26 @@ pub fn transcoder<P: AsRef<Path>>(
             .context("extracting format from output codec")?,
     );
     // https://ffmpeg.org/ffmpeg-codecs.html#Option-Mapping
-    encoder.set_bit_rate(96_000);
-    encoder.set_max_bit_rate(96_000);
+    // https://trac.ffmpeg.org/wiki/Encode/MP3
+    match (codec.id(), codec_hint) {
+        (codec::Id::MP3, OutputCodec::Mp3) => {
+            encoder.set_bit_rate(220_000);
+            encoder.set_max_bit_rate(256_000);
+        }
+        (codec::Id::OPUS, OutputCodec::Opus) => {
+            encoder.set_bit_rate(220_000);
+            encoder.set_max_bit_rate(256_000);
+        }
+        (codec::Id::AAC, OutputCodec::Aac) => {
+            // let ctx = &mut encoder.0 .0;
+            // unsafe {
+            //     (*ctx.as_mut_ptr()).profile = profile.into();
+            // }
+            encoder.set_bit_rate(128_000);
+            encoder.set_max_bit_rate(128_000);
+        }
+        (picked, hint) => panic!("unexpected codec {picked:?}//{hint:?}"),
+    };
     encoder.set_compression(Some(10));
 
     encoder.set_time_base((1, decoder.rate() as i32));
