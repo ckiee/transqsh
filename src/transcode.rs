@@ -2,7 +2,6 @@ use std::path::Path;
 
 use anyhow::Context;
 use anyhow::Result as AResult;
-use ffmpeg::codec::Profile;
 use ffmpeg::{codec, filter, format, frame, media};
 use ffmpeg_the_third as ffmpeg;
 

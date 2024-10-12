@@ -24,8 +24,15 @@ poke me if you need help, see [my website](https://mei.puppycat.house/) for how
 
 ### codecs
 as of 2024-10-12 on my ~/Music/flat
-- mp3: `Transcoded 95.8 GB ⇒ 61.6 GB (-35.70%)`
-- opus: `Transcoded 95.8 GB ⇒ 27.9 GB (-70.89%)`
+| codec | performance                               |
+|:------|:------------------------------------------|
+| opus  | `Transcoded 95.8 GB ⇒ 27.9 GB (-70.89%)`  |
+| aac   | `Transcoded 95.8 GB ⇒ 36.4 GB (-62.04%) ` |
+| mp3   | `Transcoded 95.8 GB ⇒ 61.6 GB (-35.70%)`  |
+
+https://pdfs.semanticscholar.org/cb36/5ed1cdc02e1b250cc7ff5a9ee890d863204d.pdf#page=6
+
+https://wiki.hydrogenaud.io/index.php?title=AAC_encoders
 
 ### syncthing that shit
 
