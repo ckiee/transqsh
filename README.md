@@ -9,6 +9,7 @@ a music transcoder to 96k opus. it just does the thing.
 - [ ] really fix the memory leak
 - [ ] get to 0 fails on our library (at 35 fails @ 2024-10-12)
 - [ ] makes "./out.opus"??
+- [ ] sync deletions
 
 ## usage
 
@@ -19,6 +20,16 @@ well hi there!
 - you could also just clone the repo and `cargo run --release -- --help`
 
 poke me if you need help, see [my website](https://mei.puppycat.house/) for how
+
+### syncthing that shit
+
+you can get the transcoded files onto your phone with a systemd timer and syncthing folder.
+
+it's pretty simple. see [my nixos module](https://github.com/ckiee/nixfiles/tree/97313d61e0e83ca84251fbce572cbd247ced92bb/modules/services/transqsh.nix) for reference.
+
+my stack:
+- desktop: transqsh, [syncthing](https://syncthing.net/), systemd.{[service](https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html),[timer](https://www.freedesktop.org/software/systemd/man/latest/systemd.timer.html)}
+- iPhone: [mobius sync](https://mobiussync.com/), [doppler](https://brushedtype.co/doppler/)
 
 ## license
 
