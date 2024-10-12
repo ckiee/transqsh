@@ -1,5 +1,5 @@
 use std::{
-    fmt::{Display, Write},
+    fmt::{Write},
     fs,
     path::PathBuf,
     sync::atomic::{AtomicU64, Ordering},
@@ -12,7 +12,7 @@ use ffmpeg::format;
 use ffmpeg_the_third as ffmpeg;
 use indicatif::{ParallelProgressIterator, ProgressState, ProgressStyle};
 use owo_colors::{
-    colors::{BrightGreen, BrightRed, Green},
+    colors::{BrightGreen, BrightRed},
     OwoColorize,
 };
 use rayon::prelude::*;
