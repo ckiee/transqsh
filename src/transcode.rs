@@ -1,6 +1,5 @@
 use std::path::Path;
 
-
 use anyhow::Context;
 use anyhow::Result as AResult;
 use ffmpeg::{codec, filter, format, frame, media};
@@ -75,10 +74,14 @@ pub fn transcoder<P: AsRef<Path>>(
     output_path: &P,
     filter_spec: &str,
 ) -> AResult<Transcoder> {
+    // Copy file metadata over (yes, it's really this easy)
+    octx.set_metadata(ictx.metadata().to_owned());
+
     let input = ictx
         .streams()
         .best(media::Type::Audio)
         .context("could not find best audio stream, probably not audio..")?;
+
     let context = ffmpeg::codec::context::Context::from_parameters(input.parameters())?;
     let mut decoder = context.decoder().audio()?;
     let codec = ffmpeg::encoder::find(octx.format().codec(output_path, media::Type::Audio))

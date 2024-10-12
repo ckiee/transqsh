@@ -4,11 +4,21 @@ a music transcoder to 96k opus. it just does the thing.
 
 ## todo
 
-- [-] fix the memory leak
-- [ ] '/home/ckie/Music/flat/jauntsen-soundcloud/arrival [1405331467].wav': Invalid argument
- '/home/ckie/Music/flat/NOREDISTRIBUTE/looptober 2021 - 14.wav':         Invalid argument
+- [X] fix the memory leak
+- [X] metadata
+- [ ] really fix the memory leak
+- [ ] get to 0 fails on our library (at 35 fails @ 2024-10-12)
 - [ ] makes "./out.opus"??
-- [ ] metadata
+
+## usage
+
+well hi there!
+
+- theres a nix flake, you can install that.
+- if you can't install that you could `cargo build --release` and copy the output to a /usr/local/bin.
+- you could also just clone the repo and `cargo run --release -- --help`
+
+poke me if you need help, see [my website](https://mei.puppycat.house/) for how
 
 ## license
 
