@@ -1,6 +1,6 @@
 # transqsh 
 
-a music transcoder to 96k opus. it just does the thing.
+a music transcoder to 96k opus and a few other codecs. it just does the thing.
 
 ## todo
 
