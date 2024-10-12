@@ -1,0 +1,11 @@
+# rust
+/target
+
+# testing
+out
+*.log
+# debugging
+heaptrack.*
+
+# nix
+result
