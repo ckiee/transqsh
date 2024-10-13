@@ -103,7 +103,7 @@ fn main() -> AResult<()> {
                 OutputCodec::Opus => "opus",
                 OutputCodec::Aac => "m4a",
             });
-            let r = (
+            (
                 (input_path.clone(), output_path.clone()),
                 (|| -> AResult<()> {
                     // create folders if missing
@@ -165,11 +165,7 @@ fn main() -> AResult<()> {
                     }
                     Ok(())
                 })(),
-            );
-            if let Err(e) = &r.1 {
-                eprintln!("{:?}", e)
-            }
-            r
+            )
         })
         .filter(|(_, r)| r.is_err())
         .map(|(io, r)| (io, r.err().unwrap()))
