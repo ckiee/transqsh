@@ -103,7 +103,7 @@ fn main() -> AResult<()> {
                 OutputCodec::Opus => "opus",
                 OutputCodec::Aac => "m4a",
             });
-            (
+            let r = (
                 (input_path.clone(), output_path.clone()),
                 (|| -> AResult<()> {
                     // create folders if missing
@@ -120,6 +120,9 @@ fn main() -> AResult<()> {
                     }
 
                     let mut ictx = format::input(&input_path)?;
+                    // once this is called we won't try to process this file again
+                    // if this lambda run is interrupted.
+                    // TODO: have some kinda staging system with .part files or a tmpdir.
                     let mut octx = format::output(&output_path)?;
 
                     let mut transcoder = transcoder(&mut ictx, &mut octx, &output_path, "anull", args.codec)?;
@@ -162,7 +165,11 @@ fn main() -> AResult<()> {
                     }
                     Ok(())
                 })(),
-            )
+            );
+            if let Err(e) = &r.1 {
+                eprintln!("{:?}", e)
+            }
+            r
         })
         .filter(|(_, r)| r.is_err())
         .map(|(io, r)| (io, r.err().unwrap()))

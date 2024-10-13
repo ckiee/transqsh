@@ -6,6 +6,7 @@ a music transcoder to 96k opus and a few other codecs. it just does the thing.
 
 - [X] fix the memory leak
 - [X] metadata
+- [-] cover art copy
 - [ ] really fix the memory leak
 - [ ] get to 0 fails on our library (at 35 fails @ 2024-10-12)
 - [ ] makes "./out.opus"??

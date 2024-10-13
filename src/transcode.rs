@@ -2,6 +2,7 @@ use std::path::Path;
 
 use anyhow::Context;
 use anyhow::Result as AResult;
+use ffmpeg::format::stream::Disposition;
 use ffmpeg::{codec, filter, format, frame, media};
 use ffmpeg_the_third as ffmpeg;
 
@@ -81,6 +82,26 @@ pub fn transcoder<P: AsRef<Path>>(
 
     let context = ffmpeg::codec::context::Context::from_parameters(input.parameters())?;
     let mut decoder = context.decoder().audio()?;
+
+    // todo: cover remux
+    // if let Some(cover_stream) = ictx
+    //     .streams()
+    //     .find(|s| s.disposition() == Disposition::ATTACHED_PIC)
+    // {
+    //     let mut new_stream = unsafe {
+    //         let params = cover_stream.parameters().as_ptr();
+    //         if !params.is_null() {
+    //             Some(octx.add_stream(codec::Id::from((*params).codec_id)))
+    //         } else {
+    //             None
+    //         }
+    //     }
+    //     .context("cover_stream")??;
+
+    //     new_stream.set_time_base(cover_stream.time_base());
+    //     new_stream.set_metadata(cover_stream.metadata().to_owned());
+    // }
+
     let codec = ffmpeg::encoder::find(octx.format().codec(output_path, media::Type::Audio))
         .expect("failed to find encoder")
         .audio()?;
