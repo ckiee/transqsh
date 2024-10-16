@@ -4,6 +4,7 @@ use anyhow::Context;
 use anyhow::Result as AResult;
 use ffmpeg::format::stream::Disposition;
 use ffmpeg::{codec, filter, format, frame, media};
+use ffmpeg_the_third::ffi::AV_DISPOSITION_ATTACHED_PIC;
 use ffmpeg_the_third as ffmpeg;
 
 use crate::OutputCodec;
@@ -63,6 +64,7 @@ pub struct Transcoder {
     encoder: codec::encoder::Audio,
     pub in_time_base: ffmpeg::Rational,
     out_time_base: ffmpeg::Rational,
+    pub cover_stream: Option<(usize, usize)>, /* (in, out) */
 }
 
 pub fn transcoder<P: AsRef<Path>>(
@@ -82,25 +84,6 @@ pub fn transcoder<P: AsRef<Path>>(
 
     let context = ffmpeg::codec::context::Context::from_parameters(input.parameters())?;
     let mut decoder = context.decoder().audio()?;
-
-    // todo: cover remux
-    // if let Some(cover_stream) = ictx
-    //     .streams()
-    //     .find(|s| s.disposition() == Disposition::ATTACHED_PIC)
-    // {
-    //     let mut new_stream = unsafe {
-    //         let params = cover_stream.parameters().as_ptr();
-    //         if !params.is_null() {
-    //             Some(octx.add_stream(codec::Id::from((*params).codec_id)))
-    //         } else {
-    //             None
-    //         }
-    //     }
-    //     .context("cover_stream")??;
-
-    //     new_stream.set_time_base(cover_stream.time_base());
-    //     new_stream.set_metadata(cover_stream.metadata().to_owned());
-    // }
 
     let codec = ffmpeg::encoder::find(octx.format().codec(output_path, media::Type::Audio))
         .expect("failed to find encoder")
@@ -171,8 +154,41 @@ pub fn transcoder<P: AsRef<Path>>(
     let in_time_base = decoder.time_base();
     let out_time_base = output.time_base();
 
+    // cover art remux
+    let cover_indices = if let Some(cover_stream) = ictx
+        .streams()
+        .find(|s| s.disposition() == Disposition::ATTACHED_PIC)
+    {
+        // empty stream
+        let mut new_stream = octx
+            .add_stream(codec::Id::None)
+            .context("create cover stream")?;
+
+        // copy codecpar into it
+        new_stream.set_parameters(cover_stream.parameters().clone());
+
+        new_stream.set_metadata(cover_stream.metadata().to_owned());
+        new_stream.set_time_base(cover_stream.time_base());
+
+        // encourage it to work
+        //
+        unsafe {
+            // If codec_tag is already set, ffmpeg might get scared
+            // ref: https://github.com/shssoichiro/ffmpeg-the-third/blob/d043a323d0ee3bfb8f83b1223ae9b16bc0984db5/examples/transcode-x264.rs#L223
+            (*new_stream.parameters().as_mut_ptr()).codec_tag = 0;
+            // Disposition needs to be set for mov_find_codec_tag to branch to
+            // ff_codec_get_tag(codec_cover_image_tags…)
+            (*new_stream.as_mut_ptr()).disposition = AV_DISPOSITION_ATTACHED_PIC;
+        }
+
+        Some((cover_stream.index(), new_stream.index()))
+    } else {
+        None
+    };
+
     Ok(Transcoder {
         stream: input.index(),
+        cover_stream: cover_indices,
         filter,
         decoder,
         encoder,

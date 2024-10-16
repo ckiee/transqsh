@@ -45,7 +45,7 @@ struct Args {
 fn main() -> AResult<()> {
     let args = Args::parse();
     ffmpeg::init()?;
-    ffmpeg::log::set_level(ffmpeg::log::Level::Fatal);
+    ffmpeg::log::set_level(ffmpeg::log::Level::Error);
 
     fs::create_dir(&args.out).ok();
     let files = WalkDir::new(&args.src).into_iter().collect::<Vec<_>>();
@@ -125,7 +125,8 @@ fn main() -> AResult<()> {
                     // TODO: have some kinda staging system with .part files or a tmpdir.
                     let mut octx = format::output(&output_path)?;
 
-                    let mut transcoder = transcoder(&mut ictx, &mut octx, &output_path, "anull", args.codec)?;
+                    let mut transcoder =
+                        transcoder(&mut ictx, &mut octx, &output_path, "anull", args.codec)?;
                     octx.set_metadata(ictx.metadata().to_owned());
                     octx.write_header()?;
 
@@ -142,6 +143,12 @@ fn main() -> AResult<()> {
                                 return Err(e.context("skipped file and copied it instead"));
                             }
                             transcoder.receive_and_process_decoded_frames(&mut octx)?;
+                        } else if Some(stream.index()) == transcoder.cover_stream.map(|(_, o)| o) {
+                            // theoretically required but not REALLY and i cba its a single frame
+                            // packet.rescale_ts(ist_time_bases[ist_index], ost_time_base);
+                            packet.set_position(-1);
+                            packet.set_stream(transcoder.cover_stream.unwrap().1);
+                            packet.write_interleaved(&mut octx).unwrap();
                         }
                     }
 
@@ -177,7 +184,9 @@ fn main() -> AResult<()> {
         } else {
             format!(" {}", "Run with --show-errors [-i] for details".italic())
         };
-        eprintln!("{} failed:{hint}", errors.len());
+        if !errors.is_empty() {
+            eprintln!("{} failed:{hint}", errors.len());
+        }
     }
     errors.iter().for_each(|((input_path, output_path), e)| {
         if args.show_errors {
