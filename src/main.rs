@@ -103,76 +103,78 @@ fn main() -> AResult<()> {
                 OutputCodec::Opus => "opus",
                 OutputCodec::Aac => "m4a",
             });
-            (
-                (input_path.clone(), output_path.clone()),
-                (|| -> AResult<()> {
-                    // create folders if missing
-                    fs::create_dir_all(output_path.parent().context("get output_path parent")?)
-                        .ok();
 
-                    // skip if present
-                    if output_path.exists() {
-                        // still calculate size..
-                        if let Ok(metadata) = output_path.metadata() {
-                            output_size.fetch_add(metadata.len(), Ordering::Release);
-                        }
-                        return Ok(());
-                    }
+            let run = (|| -> AResult<()> {
+                // create folders if missing
+                fs::create_dir_all(output_path.parent().context("get output_path parent")?).ok();
 
-                    let mut ictx = format::input(&input_path)?;
-                    // once this is called we won't try to process this file again
-                    // if this lambda run is interrupted.
-                    // TODO: have some kinda staging system with .part files or a tmpdir.
-                    let mut octx = format::output(&output_path)?;
-
-                    let mut transcoder =
-                        transcoder(&mut ictx, &mut octx, &output_path, "anull", args.codec)?;
-                    octx.set_metadata(ictx.metadata().to_owned());
-                    octx.write_header()?;
-
-                    for (stream, mut packet) in ictx.packets().filter_map(Result::ok) {
-                        if stream.index() == transcoder.stream {
-                            packet.rescale_ts(stream.time_base(), transcoder.in_time_base);
-                            if let Err(e) = transcoder.send_packet_to_decoder(&packet) {
-                                // if we failed to decode this file,
-                                // we'll just abort this transcode and copy it raw.
-                                fs::remove_file(&output_path).ok();
-                                let copied = fs::copy(&input_path, &output_path_orig_ext)?;
-                                output_size.fetch_add(copied, Ordering::Release);
-                                // danke schön
-                                return Err(e.context("skipped file and copied it instead"));
-                            }
-                            transcoder.receive_and_process_decoded_frames(&mut octx)?;
-                        } else if Some(stream.index()) == transcoder.cover_stream.map(|(_, o)| o) {
-                            // theoretically required but not REALLY and i cba its a single frame
-                            // packet.rescale_ts(ist_time_bases[ist_index], ost_time_base);
-                            packet.set_position(-1);
-                            packet.set_stream(transcoder.cover_stream.unwrap().1);
-                            packet.write_interleaved(&mut octx).unwrap();
-                        }
-                    }
-
-                    transcoder.send_eof_to_decoder()?;
-                    transcoder.receive_and_process_decoded_frames(&mut octx)?;
-
-                    transcoder.flush_filter()?;
-                    transcoder.get_and_process_filtered_frames(&mut octx)?;
-
-                    transcoder.send_eof_to_encoder()?;
-                    transcoder.receive_and_process_encoded_packets(&mut octx)?;
-
-                    octx.write_trailer()?;
-                    unsafe {
-                        octx.destructor();
-                    }
-                    drop(octx);
-
+                // skip if present
+                if output_path.exists() {
+                    // still calculate size..
                     if let Ok(metadata) = output_path.metadata() {
                         output_size.fetch_add(metadata.len(), Ordering::Release);
                     }
-                    Ok(())
-                })(),
-            )
+                    return Ok(());
+                }
+
+                let mut ictx = format::input(&input_path)?;
+                // once this is called we won't try to process this file again
+                // if this lambda run is interrupted.
+                // TODO: have some kinda staging system with .part files or a tmpdir.
+                let mut octx = format::output(&output_path)?;
+
+                let mut transcoder =
+                    transcoder(&mut ictx, &mut octx, &output_path, "anull", args.codec)?;
+                octx.set_metadata(ictx.metadata().to_owned());
+                octx.write_header()?;
+
+                for (stream, mut packet) in ictx.packets().filter_map(Result::ok) {
+                    if stream.index() == transcoder.stream {
+                        packet.rescale_ts(stream.time_base(), transcoder.in_time_base);
+                        transcoder.send_packet_to_decoder(&packet)?;
+                        transcoder.receive_and_process_decoded_frames(&mut octx)?;
+                    } else if Some(stream.index()) == transcoder.cover_stream.map(|(_, o)| o) {
+                        // theoretically required but not REALLY and i cba its a single frame
+                        // packet.rescale_ts(ist_time_bases[ist_index], ost_time_base);
+                        packet.set_position(-1);
+                        packet.set_stream(transcoder.cover_stream.unwrap().1);
+                        packet.write_interleaved(&mut octx).unwrap();
+                    }
+                }
+
+                transcoder.send_eof_to_decoder()?;
+                transcoder.receive_and_process_decoded_frames(&mut octx)?;
+
+                transcoder.flush_filter()?;
+                transcoder.get_and_process_filtered_frames(&mut octx)?;
+
+                transcoder.send_eof_to_encoder()?;
+                transcoder.receive_and_process_encoded_packets(&mut octx)?;
+
+                octx.write_trailer()?;
+                unsafe {
+                    octx.destructor();
+                }
+                drop(octx);
+
+                if let Ok(metadata) = output_path.metadata() {
+                    output_size.fetch_add(metadata.len(), Ordering::Release);
+                }
+                Ok(())
+            })();
+
+            if run.is_err() {
+                // err ? just copy da bytez ! it's easy.
+                fs::remove_file(&output_path).ok();
+                if let Ok(copied) = fs::copy(&input_path, &output_path_orig_ext) {
+                    output_size.fetch_add(copied, Ordering::Release);
+                }
+                // danke schön
+                // TODO:
+                // return Err(e.context("skipped file and copied it instead"));
+            }
+
+            ((input_path.clone(), output_path.clone()), run)
         })
         .filter(|(_, r)| r.is_err())
         .map(|(io, r)| (io, r.err().unwrap()))
